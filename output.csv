@@ -1,0 +1,11 @@
+source_file,manufacturer,model,ip_rating,operating_temperature_range
+01-thermara-tc450.pdf,Thermara Instruments,TC-450,IP67,-25 °C to +70 °C
+02-voltrex-vx220.pdf,Voltrex Systems,VX-220,IP20,0 °C to +55 °C
+03-nordkamp-nk8100.pdf,Nordkamp Automation,NK-8100,IP40,-10 °C to +60 °C
+04-ferrolux-fls30.pdf,Ferrolux Sensing,FLS-30,N/A,-20 °C to +60 °C
+05-baratec-bc500.pdf,Baratec Controls,BC-500,IP65,-20 °C to +85 °C
+06-solvantek-svk12.pdf,Solvantek Devices,SVK-12,N/A,-30 °C to +80 °C
+07-ardenflow-afh900.pdf,Ardenflow Hydraulics,AFH-900,IP68,-40 °C to +90 °C
+08-metrion-md-series.pdf,ERROR,ERROR,ERROR,ERROR
+09-kestrion-kst750.pdf,Kestrion Automation,KST-750,IP66,-30 °C to +75 °C
+10-panvara-pvc220.pdf,Panvara Controls,PVC-220,IP20,-10 °C to +55 °C
