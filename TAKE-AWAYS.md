@@ -1,7 +1,11 @@
 # My Key take aways
 
 ## Troubles/Problems
-...
+Actually, _None_.
+
+However, the "traps" i noticed were:
+- nuances in terms used in the datasheets, e.g. "IP Rating" vs "IP Code" etc. as the come from different manufacturers.
+- multiple model variants in the datasheets (e.g. sheet 08: "metrion drives"), which required a more specific output format to the LLM to extract them as a list of dictionaries.
 
 ## My Approach
 
@@ -45,6 +49,17 @@ An alternative could have been **GPT 5.6 Luna**:
 
 ⚠️Metrics according to the [Blocky API documentation](https://api.theblockbrain.ai/docs).
 
+### Prompt Engineering
+
+I used **role-task-context-output_format** prompt engineering technique to instruct the LLM to extract the required values from the datasheets.
+
+- The **1rst version** of my user prompt (see `EXTRACTION_PROMPT_V1` in [extract.py](/extract.py)) didn't conver the case, where the technical data contain multiple model variants.
+
+- The **2nd and last version** (see `EXTRACTION_PROMPT`) clearly specifies it, and instructs the LLM to extract the variants as a list of dictionaries, each containing the required values.
+
 ## Improvements
-...
+
+Maybe having an endpoint to read multiple attached files at once, instead of having to upload them one by one, would be a good improvement for the API.
+
+⚠️ **Critique:** I wonder if it's scalable (at customer level) to have the LLM read multiple files at once, as it may exceed the context window, as the number of data sheets increases.
 
