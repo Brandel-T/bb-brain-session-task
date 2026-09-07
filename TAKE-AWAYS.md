@@ -53,7 +53,7 @@ An alternative could have been **GPT 5.6 Luna**:
 
 I used **role-task-context-output_format** prompt engineering technique to instruct the LLM to extract the required values from the datasheets.
 
-- The **1rst version** of my user prompt (see `EXTRACTION_PROMPT_V1` in [extract.py](/extract.py)) didn't conver the case, where the technical data contain multiple model variants.
+- The **1rst version** of my user prompt (see `EXTRACTION_PROMPT_V1` in [`extract.py`](/extract.py)) didn't conver the case, where the technical data contain multiple model variants. And the corresponding script output was stored in [`output_v1.csv`](/output_v1.csv).
 
 - The **2nd and last version** (see `EXTRACTION_PROMPT`) clearly specifies it, and instructs the LLM to extract the variants as a list of dictionaries, each containing the required values.
 
