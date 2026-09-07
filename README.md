@@ -38,3 +38,22 @@ you see.
 
 If something here is unclear, make an assumption, tell us it was one, and tell us how you would
 check it with the customer.
+
+## Run the code
+
+**Install dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+**Run the extraction script:**
+
+From the project root directory:
+
+```bash
+python extract.py
+```
+
+## Results
+
+Available in [output.csv](/output.csv).
