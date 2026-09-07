@@ -11,7 +11,6 @@ Requires .env (copy .env.example) with BB_TOKEN, BB_URL, BB_BOT_ID.
 
 import csv
 import json
-import re
 import sys
 import time
 import uuid
@@ -22,7 +21,30 @@ import requests
 from dotenv import load_dotenv
 import os
 
-logging.basicConfig(level=logging.INFO)
+class _ConsoleFormatter(logging.Formatter):
+  """Add compact, color-coded highlighting to console log messages."""
+
+  _COLORS = {
+    logging.DEBUG: "\033[36m",     # cyan
+    logging.INFO: "\033[32m",      # green
+    logging.WARNING: "\033[33m",   # yellow
+    logging.ERROR: "\033[31m",     # red
+    logging.CRITICAL: "\033[1;31m",  # bold red
+  }
+  _RESET = "\033[0m"
+
+  def format(self, record):
+    level = record.levelno
+    color = self._COLORS.get(level, self._RESET)
+    message = super().format(record)
+    return f"{color}{message}{self._RESET}"
+
+
+_console_handler = logging.StreamHandler()
+_console_handler.setFormatter(
+  _ConsoleFormatter("%(asctime)s %(levelname)-8s %(message)s", "%H:%M:%S")
+)
+logging.basicConfig(level=logging.INFO, handlers=[_console_handler], force=True)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -39,7 +61,7 @@ POLL_TIMEOUT_SECONDS = 120
 
 FIELDS = ["manufacturer", "model", "ip_rating", "operating_temperature_range"]
 
-EXTRACTION_PROMPT = """\
+EXTRACTION_PROMPT_V1 = """\
 Read the attached datasheet and extract exactly these four fields:
 
 - **manufacturer**: the company name that publishes the datasheet.
@@ -72,6 +94,45 @@ fences, in exactly this shape:
 {"manufacturer": "...", "model": "...", "ip_rating": "...", "operating_temperature_range": "..."}
 """
 
+EXTRACTION_PROMPT = """\
+Read the attached datasheet and extract exactly these four fields:
+
+- **manufacturer**: the company name that publishes the datasheet.
+- **model**: the product model code/name (generally mentioned in the the title
+  or header of the attachment).
+- **ip_rating**: the ingress protection / enclosure rating (e.g. "IP67"). This may
+  appear under labels other than "IP rating", such as "Ingress protection",
+  "Protection class", "IP code", "Enclosure rating", "Housing protection", or
+  "Ingress Protection Rating" - treat all of these as the same field. It may
+  also only be stated in a sentence rather than the specifications table.
+  Be clever about finding it and keep in mind that this value in entered by a
+  person, so it may be written in a variety of ways (e.g. "IP 67", "IP-67",
+  "IP67", "IP6K7", etc.).
+- **operating_temperature_range**: the operating/ambient/working temperature
+  range, e.g. "-25 C to +70 C". This may appear under labels such as
+  "Operating temperature", "Ambient temperature", "Working temperature range",
+  or only mentioned in a descriptive sentence rather than the table - search
+  the whole document, not just the specification table. Be as clever as are looking
+  the **ip_rating** field, since this value is also entered by a person and may be written differently.
+
+If the datasheet describes more than one model variant (e.g. two columns in
+the specifications table for two part numbers) and ip_rating or
+operating_temperature_range differ between variants, report all variants
+(per manufacturer) in separate lines (list of dictionaries).
+
+If a field truly cannot be found anywhere in the document, use "N/A".
+
+Respond with ONLY a single JSON object, no other text, no markdown code
+fences, in exactly this shape:
+{"manufacturer": "...", "model": "...", "ip_rating": "...", "operating_temperature_range": "..."}
+for one model variant, or
+
+[
+  {"manufacturer": "...", "model": "...", "ip_rating": "...", "operating_temperature_range": "..."},
+  ...
+]
+for more than one model variant
+"""
 
 
 def headers(extra=None):
@@ -201,12 +262,21 @@ def delete_conversation(convo_id: str):
     logger.warning(f"Failed to delete conversation {convo_id}: {e}")
 
 
-def parse_json_answer(text: str) -> dict:
-  """The bot may wrap its JSON in prose or code fences; pull out the object."""
-  match = re.search(r"\{.*\}", text, re.DOTALL)
-  if not match:
-    raise ValueError(f"No JSON object found in response: {text!r}")
-  return json.loads(match.group(0))
+def parse_json_answer(text: str) -> dict | list[dict]:
+  """Extract a JSON object or an array of variant objects from the response."""
+  decoder = json.JSONDecoder()
+  for index, character in enumerate(text):
+    if character not in "[{":
+      continue
+    try:
+      answer, _ = decoder.raw_decode(text[index:])
+    except json.JSONDecodeError:
+      continue
+    if isinstance(answer, dict):
+      return answer
+    if isinstance(answer, list) and all(isinstance(item, dict) for item in answer):
+      return answer
+  raise ValueError(f"No JSON object or array found in response: {text!r}")
 
 
 def process_file(pdf_path: Path):
@@ -223,9 +293,13 @@ def process_file(pdf_path: Path):
     answer = ask(convo_id, EXTRACTION_PROMPT)
 
     data = parse_json_answer(answer)
-    row = {field: data.get(field, "N/A") for field in FIELDS}
-    row["source_file"] = pdf_path.name
-    return row
+    variants = data if isinstance(data, list) else [data]
+    rows = []
+    for variant in variants:
+      row = {field: variant.get(field, "N/A") for field in FIELDS}
+      row["source_file"] = pdf_path.name
+      rows.append(row)
+    return rows
   finally:
     delete_conversation(convo_id)
 
@@ -244,7 +318,7 @@ def main():
   failures = []
   for pdf_path in pdf_files:
     try:
-      rows.append(process_file(pdf_path))
+      rows.extend(process_file(pdf_path))
     except Exception as e:
       logger.error(f"[{pdf_path.name}] FAILED: {e}")
       failures.append(pdf_path.name)
